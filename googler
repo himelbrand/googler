@@ -42,6 +42,8 @@ import unicodedata
 import urllib.parse
 import uuid
 import webbrowser
+import re
+import time
 
 # Python optional dependency compatibility layer
 try:
@@ -2247,6 +2249,8 @@ class GoogleParser(object):
         self.showing_results_for = None
         self.filtered = False
         self.results = []
+        self.mstook = 0
+        self.results_found = 0
         self.parse(html)
 
     def parse(self, html):
@@ -2266,6 +2270,14 @@ class GoogleParser(object):
         cw = lambda s: re.sub(r'[ \t\n\r]+', ' ', s) if s is not None else s
 
         index = 0
+        stats_div = tree.select('div #result-stats')
+        if stats_div:
+            # ans1 = int(re.sub(',','',re.findall(r'\d+[^\.][\,\d+]*',str(stats_div))[0]))
+            ans2 = float(re.findall(r'\d+\.\d+',str(stats_div))[0])
+            print(f'{int(ans2*1000)}')
+            # print(f'count {ans1}')
+            self.mstook = int(ans2*1000)
+            # self.results_found = ans1
         for div_g in tree.select_all('div.g'):
             if div_g.select('.hp-xpdbox'):
                 # Skip smart cards.
@@ -2703,11 +2715,14 @@ class GooglerCmd(object):
         """
         # This method also sets self._results_filtered and
         # self._urltable.
-        if self._preload_from_file:
+        if False and self._preload_from_file:
             with open(self._preload_from_file, encoding='utf-8') as fp:
                 page = fp.read()
         else:
+            start = time.time()
             page = self._conn.fetch_page(self._google_url.relative())
+            timed = time.time() - start
+            print(f'{int(timed*1000)}')
             if logger.isEnabledFor(logging.DEBUG):
                 import tempfile
                 fd, tmpfile = tempfile.mkstemp(prefix='googler-response-', suffix='.html')
@@ -2808,7 +2823,7 @@ class GooglerCmd(object):
         """
         self.fetch()
         self.showing_results_for_alert()
-        self.display_results(prelude=prelude, json_output=json_output)
+        # self.display_results(prelude=prelude, json_output=json_output)
         if self._results_filtered:
             colors = self.colors
             info = 'Enter "unfilter" to show similar results Google omitted.'
@@ -3623,18 +3638,18 @@ def main():
             logger.warning('--noua option has been deprecated and has no effect (see #284)')
 
         repl = GooglerCmd(opts)
-
+        # print(f'query {" ".join(repl.keywords)}')
         # Non-interactive mode
         if opts.json or opts.lucky or opts.noninteractive or opts.html_file:
             repl.fetch()
-            if opts.lucky:
-                if repl.results:
-                    open_url(repl.results[0].url)
-                else:
-                    print('No results.', file=sys.stderr)
-            else:
-                repl.showing_results_for_alert(interactive=False)
-                repl.display_results(json_output=opts.json)
+            # if opts.lucky:
+            #     if repl.results:
+            #         open_url(repl.results[0].url)
+            #     else:
+            #         print('No results.', file=sys.stderr)
+            # else:
+            #     repl.showing_results_for_alert(interactive=False)
+            #     repl.display_results(json_output=opts.json)
             sys.exit(0)
 
         # Interactive mode
